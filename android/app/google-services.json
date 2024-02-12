@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "499631217254",
+    "project_id": "lab-tri",
+    "storage_bucket": "lab-tri.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499631217254:android:0d04e9e2e13db7a07a6ba7",
+        "android_client_info": {
+          "package_name": "com.example.labtrifinal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQOuo2z9TRqRiDb3dYuR4qGTWiJrxldv0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499631217254:android:a5e580b8e7d3966c7a6ba7",
+        "android_client_info": {
+          "package_name": "com.example.untitled"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQOuo2z9TRqRiDb3dYuR4qGTWiJrxldv0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
