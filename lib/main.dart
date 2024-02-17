@@ -1,8 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:table_calendar/table_calendar.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-void main() {
+late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  const AndroidInitializationSettings initializationSettingsAndroid =
+  AndroidInitializationSettings('app_icon');
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   runApp(const MyApp());
 }
 
@@ -107,6 +119,26 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
   }
 }
 
+Future<void> _showNotification(String title, String body) async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+  AndroidNotificationDetails(
+    '191009',
+    'Exam Scheduler App',
+    importance: Importance.max,
+    priority: Priority.high,
+    ticker: 'Alert',
+  );
+  const NotificationDetails platformChannelSpecifics =
+  NotificationDetails(android: androidPlatformChannelSpecifics);
+  await flutterLocalNotificationsPlugin.show(
+    0,
+    title,
+    body,
+    platformChannelSpecifics,
+    payload: 'Exam X',
+  );
+}
+
 class ExamSchedulePage extends StatefulWidget {
   final User? user;
 
@@ -122,6 +154,20 @@ class _ExamSchedulePageState extends State<ExamSchedulePage> {
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
 
+  late CalendarFormat _calendarFormat;
+  late DateTime _focusedDay;
+  late DateTime _selectedDay;
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    _focusedDay = DateTime.now();
+    _selectedDay = DateTime.now();
+    _calendarFormat = CalendarFormat.month;
+  }
+
   Future<void> _addExam() async {
     try {
       await _firestore.collection('exams').add({
@@ -133,6 +179,7 @@ class _ExamSchedulePageState extends State<ExamSchedulePage> {
       _subjectController.clear();
       _dateController.clear();
       _timeController.clear();
+      _showNotification('Exam Added', 'You have successfully added an exam');
     } catch (e) {
       print("Failed to add exam: $e");
     }
@@ -169,6 +216,36 @@ class _ExamSchedulePageState extends State<ExamSchedulePage> {
               child: const Text('Add Exam'),
             ),
             const SizedBox(height: 16.0),
+            TableCalendar(
+              firstDay: DateTime.utc(2020, 1, 1),
+              lastDay: DateTime.utc(2030, 12, 31),
+              focusedDay: _focusedDay,
+              calendarFormat: _calendarFormat,
+              selectedDayPredicate: (day) {
+                return isSameDay(_selectedDay, day);
+              },
+              onDaySelected: (selectedDay, focusedDay) {
+                setState(() {
+                  _selectedDay = selectedDay;
+                  _focusedDay = focusedDay;
+                });
+              },
+              calendarStyle: CalendarStyle(
+                todayDecoration: BoxDecoration(
+                  color: Colors.blueAccent,
+                  shape: BoxShape.circle,
+                ),
+                selectedDecoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  shape: BoxShape.circle,
+                ),
+                selectedTextStyle: TextStyle(color: Colors.white),
+              ),
+              headerStyle: HeaderStyle(
+                formatButtonVisible: false,
+              ),
+            ),
+            const SizedBox(height: 20),
             Expanded(
               child: StreamBuilder(
                 stream: _firestore
