@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 late FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin;
 
@@ -119,24 +122,30 @@ class _AuthenticationPageState extends State<AuthenticationPage> {
   }
 }
 
-Future<void> _showNotification(String title, String body) async {
-  const AndroidNotificationDetails androidPlatformChannelSpecifics =
-  AndroidNotificationDetails(
-    '191009',
-    'Exam Scheduler App',
-    importance: Importance.max,
-    priority: Priority.high,
-    ticker: 'Alert',
-  );
-  const NotificationDetails platformChannelSpecifics =
-  NotificationDetails(android: androidPlatformChannelSpecifics);
-  await flutterLocalNotificationsPlugin.show(
-    0,
-    title,
-    body,
-    platformChannelSpecifics,
-    payload: 'Exam X',
-  );
+Future<void> _showNotification(String title, String body, double? eventLatitude, double? eventLongitude) async {
+  Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+  double distanceInMeters = await Geolocator.distanceBetween(position.latitude, position.longitude, eventLatitude!, eventLongitude!);
+
+  if (distanceInMeters < 1000) {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    AndroidNotificationDetails(
+      '191009',
+      'Exam Scheduler App',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'Alert',
+    );
+    const NotificationDetails platformChannelSpecifics =
+    NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: 'Exam X',
+    );
+  }
 }
 
 class ExamSchedulePage extends StatefulWidget {
@@ -158,7 +167,8 @@ class _ExamSchedulePageState extends State<ExamSchedulePage> {
   late DateTime _focusedDay;
   late DateTime _selectedDay;
 
-
+  double? eventLatitude;
+  double? eventLongitude;
 
   @override
   void initState() {
@@ -179,7 +189,16 @@ class _ExamSchedulePageState extends State<ExamSchedulePage> {
       _subjectController.clear();
       _dateController.clear();
       _timeController.clear();
-      _showNotification('Exam Added', 'You have successfully added an exam');
+
+      String googleMapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=$eventLatitude,$eventLongitude';
+      if (await canLaunchUrl(googleMapsUrl as Uri)) {
+        await launchUrl(googleMapsUrl as Uri);
+      } else {
+        throw 'Could not launch $googleMapsUrl';
+      }
+
+
+      _showNotification('Exam Added', 'You have successfully added an exam', eventLatitude, eventLongitude);
     } catch (e) {
       print("Failed to add exam: $e");
     }
@@ -247,29 +266,24 @@ class _ExamSchedulePageState extends State<ExamSchedulePage> {
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: StreamBuilder(
-                stream: _firestore
-                    .collection('exams')
-                    .where('userId', isEqualTo: widget.user!.uid)
-                    .snapshots(),
-                builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
-                  final exams = snapshot.data!.docs;
-                  return ListView.builder(
-                    itemCount: exams.length,
-                    itemBuilder: (context, index) {
-                      final exam = exams[index];
-                      return Card(
-                        child: ListTile(
-                          title: Text(exam['subject']),
-                          subtitle: Text('${exam['date']} - ${exam['time']}'),
-                        ),
-                      );
-                    },
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: LatLng(37.422, -122.084), // Initial map position
+                  zoom: 10.0,
+                ),
+                markers: Set<Marker>.from([
+                  Marker(
+                    markerId: MarkerId('eventLocation'),
+                    position: LatLng(eventLatitude ?? 0, eventLongitude ?? 0),
+                    infoWindow: InfoWindow(
+                      title: 'Event Location',
+                      snippet: 'This is the event location',
+                    ),
+                  ),
+                ]),
+                onMapCreated: (GoogleMapController controller) {
+                  controller.animateCamera(
+                    CameraUpdate.newLatLngZoom(LatLng(eventLatitude!, eventLongitude!), 15),
                   );
                 },
               ),
